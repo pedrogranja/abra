@@ -49,12 +49,9 @@ let Room = function () {
 let rooms = [];
 
 function newPlayer(ws, data) {
-	// Name is escaped by textContent on the client side,
-	// however, still testing for max length.
-	if (data.name.length > 30) return; // max is 15 client-side
-
-	// Silently drop clients messing around with color
-	if (!data.color.startsWith("#") || data.color.length > 7) return;
+	// Name should be controlled on the client side,
+	// but we still test for max length for good measure.
+	if (data.name.length > 20) return;
 
 	// Save a player's attributes on its socket object.
 	Player.call(ws, data.name, data.color, Date.now() + Math.random());

@@ -3,38 +3,38 @@ const PORT = window.location.port ? ':' + window.location.port : '';
 const WS_SERVER = PROTOCOL + window.location.hostname + PORT + '/abra';
 
 function initPlayer() {
-	var player = new Player(
+	let selectedColor = document.querySelector("#color-box > .selected-color");
+
+	let user = new Player(
 		document.querySelector("#getname").value,
-		document.querySelector("#getcolor > .selected-color").value,
+		window.getComputedStyle(selectedColor).getPropertyValue('background-color'),
 		USER_ID
 	);
 
-	connect(player);
+	connect(user);
 
-	var againButton = document.getElementById("again-button");
-	againButton.addEventListener("click", function (e) {
-		playAgain(player);
-	});
+	let againButton = document.getElementById("again-button");
+	againButton.addEventListener("click", playAgain(user));
 
-	showGame(player);
+	showGame(user);
 }
 
-function connect(player) {
-	var socket = new WebSocket(WS_SERVER);
+function connect(user) {
+	let socket = new WebSocket(WS_SERVER);
 
-	manageSocketEvents(socket, player);
+	manageSocketEvents(socket, user);
 
 	socket.addEventListener('open', function () {
 		socket.send(JSON.stringify({
 			event: 'newPlayer',
-			name: player.name,
-			color: player.color
+			name: user.name,
+			color: user.color
 		}));
 	});
 }
 
-function manageSocketEvents(socket, userPlayer) {
-	var room;
+function manageSocketEvents(socket, user) {
+	let room;
 
 	socket.addEventListener('message', function(message) {
 		data = JSON.parse(message.data);
@@ -44,7 +44,7 @@ function manageSocketEvents(socket, userPlayer) {
 				room = Room.from(data);
 				showNewRoom(room);
 				showRoomStatus("foundroom", room);
-				room.players.push(userPlayer);
+				room.players.push(user);
 				break;
 
 			case 'playerEntered':
@@ -55,8 +55,8 @@ function manageSocketEvents(socket, userPlayer) {
 
 			case 'startGame':
 				room.players = room.players.slice();
-				setTimeout(startGame, room.readyTime*1000, room, socket, data.text, userPlayer);
-				showPreGame(room, data.text, userPlayer);
+				setTimeout(startGame, room.readyTime*1000, room, socket, data.text, user);
+				showPreGame(room, data.text, user);
 				showRoomStatus("gamestart", room);
 				break;
 
@@ -74,7 +74,7 @@ function manageSocketEvents(socket, userPlayer) {
 			case 'playerDisconnected':
 				var i = util.findPlayerIndex(data.id, room.players);
 				var player = room.players[i];
-				room.players.splice(i,1); // remove from players
+				room.players.splice(i, 1); // remove from players
 				player.typed(-1); // hide cursor
 				document.getElementById(player.id).remove(); // Remove from lobby list
 				break;

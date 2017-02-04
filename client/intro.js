@@ -1,76 +1,44 @@
-document.addEventListener("DOMContentLoaded", function () {
-	generateBoxColors(document.getElementById("getcolor"));
+const COOKIE_USER_COLOR= "userColor";
+const COLOR_PALETTE_LENGTH = 21;
 
-	var startButton = document.getElementById("start-button");
-	startButton.addEventListener("click", initPlayer);
+let colorBox = document.getElementById("color-box");
+recallPreviousColor(colorBox);
 
-	// Focus the name input field
-	var getname = document.getElementById("getname");
-	getname.focus();
+let startButton = document.getElementById("start-button");
+startButton.addEventListener("click", initPlayer);
 
-	// Bind Enter to START button
-	getname.addEventListener("keyup", function (e) {
-		if (e.key == "Enter") {
-			startButton.click();
-		}
-	});
+// Focus the name input field
+let getname = document.getElementById("getname");
+getname.focus();
+
+// Bind Enter to START button
+getname.addEventListener("keyup", function (e) {
+	if (e.key == "Enter") {
+		startButton.click();
+	}
 });
 
-// Materialized colors
-const COLORS = [
-	"_f44336",
-	"_e91e63",
-	"_9c27b0",
-	"_673ab7",
-	"_3f51b5",
-	"_2196f3",
-	"_03a9f4",
-	"_00bcd4",
-	"_009688",
-	"_4caf50",
-	"_8bc34a",
-	"_cddc39",
-	"_ffeb3b",
-	"_ffc107",
-	"_ff9800",
-	"_ff5722",
-	"_795548",
-	"_9e9e9e",
-	"_607d8b",
-	"_ffffff",
-	"_000000"
-];
-const COOKIE_COLOR_CLASS = "userColorClass";
+// Color selection handler.
+function selectColor() {
+	let prevColor = document.querySelector("#color-box > .selected-color");
+	prevColor.classList.remove("selected-color");
 
-// Select other color
-function selectMainColor() {
-	var lastElement = document.querySelector("#getcolor > .selected-color");
-	lastElement.classList.remove("selected-color");
 	this.classList.add("selected-color");
-	util.setCookie(COOKIE_COLOR_CLASS, this.value.replace("#","_"));
+	util.setCookie(COOKIE_USER_COLOR, this.value);
 }
 
-// Generate color selection boxes
-function generateBoxColors(getcolor){
-	var colorBox;
-	var cachedColor = util.getCookie(COOKIE_COLOR_CLASS);
-
-	var color;
-	for (var i = 0; i < COLORS.length; i++) {
-		color = COLORS[i].replace("_","#");
-		colorBox = document.createElement("div");
-		colorBox.onclick = selectMainColor;
-		colorBox.addEventListener("click", selectMainColor);
-		colorBox.value = color;
-		colorBox.style.background = color;
-		if (cachedColor === COLORS[i]) {
-			colorBox.classList.add("selected-color");
-		}
-		getcolor.appendChild(colorBox);
+// Remember the user's last color.
+function recallPreviousColor(colorBox) {
+	let box;
+	for (let i = 0; i < COLOR_PALETTE_LENGTH; i++) {
+		box = colorBox.children[i];
+		box.addEventListener("click", selectColor);
+		box.value = i;
 	}
 
-	// Set default color if not saved
-	if (getcolor.getElementsByClassName("selected-color").length == 0) {
-		getcolor.children[0].classList.add("selected-color");
+	let cachedColor = util.getCookie(COOKIE_USER_COLOR);
+	if (!cachedColor) {
+		cachedColor = Math.floor(Math.random() * COLOR_PALETTE_LENGTH);
 	}
+	colorBox.children[cachedColor].classList.add("selected-color");
 }
