@@ -8,8 +8,43 @@ const WS_PATH = '/abra';
 const WebSocketServer = require('uws').Server;
 let WSSOptions = {
 	path: WS_PATH,
-	nativeHttp: true
+	nativeHttp: true,
+	maxPayload: 1e6
 };
+
+// In these ws event listeners, 'this' is the websocket itself.
+function wsClose(code, reason) {
+	abra.playerDisconnected(this);
+}
+
+function wsMessage(data) {
+	try {
+		data = JSON.parse(data);
+	}
+	catch (e) {
+		// Ignore badly formatted data.
+		return;
+	}
+
+	switch (data.event) {
+		case 'newPlayer':
+			abra.newPlayer(this, data);
+			break;
+
+		case 'playerTyped':
+			abra.playerTyped(this, data);
+			break;
+
+		case 'playerDone':
+			abra.playerDone(this, data);
+			break;
+
+		default:
+			// Ignore unknown event.
+			return;
+			break;
+	}
+}
 
 function manageServerEvents(wss) {
 	// Server 'error' event listener.
@@ -26,40 +61,6 @@ function manageServerEvents(wss) {
 		// Client 'message' event listener.
 		ws.on('message', wsMessage);
 	});
-
-	// In these ws event listeners, 'this' is the websocket itself.
-	function wsClose(code, reason) {
-		abra.playerDisconnected(this);
-	}
-
-	function wsMessage(data) {
-		try {
-			data = JSON.parse(data);
-		}
-		catch (e) {
-			// Ignore badly formatted data.
-			return;
-		}
-
-		switch (data.event) {
-			case 'newPlayer':
-				abra.newPlayer(this, data);
-				break;
-
-			case 'playerTyped':
-				abra.playerTyped(this, data);
-				break;
-
-			case 'playerDone':
-				abra.playerDone(this, data);
-				break;
-
-			default:
-				// Ignore unknown event.
-				return;
-				break;
-		}
-	}
 }
 
 function main() {
