@@ -1,31 +1,26 @@
-/* Game room control */
+/* "game" screen */
 
-function showGame(userPlayer) {
-	// hide("intro");
-	// show("game");
-	util.transition("intro", "game");
-	setTextOpacity(0.5);
-	showPlayer(userPlayer);
-}
-
-function playAgain(userPlayer) {
-	connect(userPlayer);
+function playAgain(user) {
+	util.clear(document.getElementById("text"));
+	util.clear(document.getElementById("room-name"));
+	util.clear(document.getElementById("status"));
+	util.clear(document.getElementById("players"));
+	util.clear(document.querySelector("#stats-table tbody"));
+	user.reset();
 
 	util.transition("stats", "game");
-	setTextOpacity(0.5);
-	document.getElementById("text").innerHTML = "";
-	document.getElementById("room-name").textContent = "";
-	document.getElementById("status").innerHTML = "";
-	document.getElementById("players").innerHTML = "";
-	document.querySelector("#stats-table tbody").innerHTML = "";
-	userPlayer.reset();
-
-	showPlayer(userPlayer);
-	showStatus("Connecting to server...");
+	showGame(user);
+	connect(user);
 }
 
-function showPlayer(player) {
-	var li = document.createElement("li");
+function showGame(user) {
+	showNewPlayer(user);
+	util.setTextOpacity(0.5);
+	util.showRoomStatus("Connecting to server...");
+}
+
+function showNewPlayer(player) {
+	let li = document.createElement("li");
 	li.textContent = player.name;
 	li.style.color = player.color;
 	li.id = player.id;
@@ -35,88 +30,86 @@ function showPlayer(player) {
 function showNewRoom(room) {
 	document.getElementById("room-name").textContent = room.name;
 
-	// Show the players already in the room
-	for (var i = 0; i < room.players.length; i++) {
+	// Show the players that were already in the room.
+	for (let i = 0; i < room.players.length; i++) {
 		room.players[i] = Player.from(room.players[i]);
-		showPlayer(room.players[i]);
+		showNewPlayer(room.players[i]);
 	}
 }
 
-function setTextOpacity(opacity) {
-	document.getElementById("text").style.opacity = opacity.toString();
-}
+function foundRoom(room, user) {
+	showNewRoom(room);
+	room.players.push(user);
 
-function showStatus(status) {
-	document.getElementById("status").textContent = status;
-}
+	if (room.timeLeft === 0) {
+		util.showRoomStatus("Game starting... ");
+		return;
+	}
 
-function showRoomStatus(statusCode, room) {
-	if (statusCode === "foundroom") {
-		if (room.timeLeft <= 0) return;
-
-		showStatus("Finding players... " + room.timeLeft);
-
-		room.timer = setInterval(function () {
-			room.timeLeft--;
-			if (room.timeLeft) {
-				showStatus("Finding players... " + room.timeLeft);
-			} else {
-				clearInterval(room.timer);
-				room.timer = undefined;
-				showStatus("Game starting... ");
-			}
-		}, 1000, room);
-
-	} else if (statusCode === "gamestart") {
-		if (room.readyTime <= 0) return;
-
-		if (room.timer) {
+	util.showRoomStatus("Finding players... " + room.timeLeft);
+	room.timer = setInterval(() => {
+		room.timeLeft--;
+		if (room.timeLeft) {
+			util.showRoomStatus("Finding players... " + room.timeLeft);
+		} else {
 			clearInterval(room.timer);
 			room.timer = undefined;
+			util.showRoomStatus("Game starting... ");
 		}
-
-		showStatus("Start in " + room.readyTime);
-		room.timer = setInterval(function () {
-			room.readyTime--;
-			if (room.readyTime) {
-				showStatus("Start in " + room.readyTime);
-			} else {
-				clearInterval(room.timer);
-				room.timer = undefined;
-				showStatus("Go!");
-			}
-		}, 1000, room);
-	}
+	}, 1000, room); // Tick every second.
 }
 
-function showPreGame(room, text, userPlayer) {
+function playerEnteredRoom(room, player) {
+	room.players.push(player);
+	showNewPlayer(player);
+}
+
+function showPreGame(room, socket, text, user) {
+	setTimeout(startGame, room.readyTime*1000, room, socket, data.text, user);
+
 	// Show text (a <span> for each letter)
-	for (var i = 0; i < text.length; i++) {
-		var span = document.createElement("span");
+	// TODO: DocumentFragment?
+	for (let i = 0; i < text.length; i++) {
+		let span = document.createElement("span");
 		span.textContent = text[i];
-		span.players = []; // save the players on that span
+		// save the players on this particular span in its own object.
+		span.players = [];
 		document.getElementById("text").appendChild(span);
 	}
-	for (var i = 0; i < room.players.length; i++) {
-		room.players[i].typed(0);
+	user.moveCursor(0);
+
+	if (room.timer) {
+		clearInterval(room.timer);
 	}
-	userPlayer.typed(0);
+
+	util.showRoomStatus("Start in " + room.readyTime + "...");
+	room.timer = setInterval(() => {
+		room.readyTime--;
+		if (room.readyTime) {
+			util.showRoomStatus("Start in " + room.readyTime + "...");
+		} else {
+			clearInterval(room.timer);
+			room.timer = undefined;
+			util.showRoomStatus("Go!");
+		}
+	}, 1000, room);
+
 }
 
-function startGame(room, socket, text, userPlayer) {
-	prepareInput(room, socket, text, userPlayer);
-	setTextOpacity(1);
+function startGame(room, socket, text, user) {
+	prepareInput(room, socket, text, user);
+	util.setTextOpacity(1);
 	room.startTime = new Date();
 }
 
-var inputListener;
-var keydownListener;
-var blurListener;
-var clickListener;
-function prepareInput(room, socket, text, userPlayer) {
-	var input = document.getElementById("input");
+let blurListener;
+let clickListener;
+let inputListener;
+function prepareInput(room, socket, text, user) {
+	let input = document.getElementById("hidden-input");
 
-	 // Clear the input field, to ensure that the "input" event is triggered
+	// Clear the input field, to ensure that the
+	// "input" event is triggered next time.
 	input.value = "";
 
 	// Always focus input box
@@ -130,72 +123,67 @@ function prepareInput(room, socket, text, userPlayer) {
 
 	// Catch keypresses inside input box
 	input.addEventListener("input", inputListener = function (e) {
-		keypress(this.value, room, socket, text, userPlayer);
+		userKeyPress(this.value, room, socket, text, user);
 		this.value = "";
 	});
 }
 
-function keypress(char, room, socket, text, userPlayer) {
-	var span = document.getElementById("text").children[userPlayer.pos];
-	if (char === text[userPlayer.pos]) {
-		userPlayer.typed(userPlayer.pos + 1);
-		span.setAttribute("name","written");
-	} else {
-		// Wrong keypress
-		userPlayer.errors++;
+function userKeyPress(char, room, socket, text, user) {
+	let span = document.getElementById("text").children[user.pos];
 
-		span.id = "wrong";
+	if (char !== text[user.pos]) {
+		// Wrong keypress
+		user.errors++;
+		span.classList.add('wrong');
+
 		setTimeout(function() {
-			span.id = "";
-		}, 100);
+			span.classList.remove('wrong');
+		}, 200);
 
 		return;
 	}
 
-	if (userPlayer.pos === text.length) {
-		userPlayer.endTime = new Date() - room.startTime;
-		socket.send(JSON.stringify({
-			event: 'playerDone',
-			time: (userPlayer.endTime / 1000),
-			mistakes: userPlayer.errors
-		}));
-		finishGame();
-	} else {
-		socket.send(JSON.stringify({
-			event: 'playerTyped',
-			pos: userPlayer.pos
-		}));
+	socket.send(JSON.stringify({
+		event: 'playerTyped',
+		pos: user.pos
+	}));
+
+	user.moveCursor(user.pos + 1);
+	user.pos++;
+	span.setAttribute('written', '');
+
+	if (user.pos === text.length) {
+		finishGame(room, user, socket);
 	}
 }
 
-function finishGame() {
-	var input = document.getElementById("input");
-	input.removeEventListener("input", inputListener);
-	input.removeEventListener("keydown", keydownListener);
+function finishGame(room, user, socket) {
+	user.endTime = new Date() - room.startTime;
+
+	socket.send(JSON.stringify({
+		event: 'playerDone',
+		time: (user.endTime / 1000),
+		mistakes: user.errors
+	}));
+
+	// Clear event listeners related to the <input>
+	let input = document.getElementById("hidden-input");
 	input.removeEventListener("blur", blurListener);
+	window.removeEventListener("click", clickListener);
+	input.removeEventListener("input", inputListener);
 }
 
-function endGame() {
-	// hide("game");
-	// show("stats");
-	util.transition("game", "stats");
-	document.getElementById("again-button").focus();
+function playerTyped(room, playerId, pos) {
+	let player = util.findPlayer(playerId, room.players);
+	player.moveCursor(pos);
+	player.pos = pos;
 }
 
-function genStats(stats) {
-	var table = document.getElementById("stats-table").tBodies[0];
+function playerDisconnected(room, playerId) {
+	let i = util.findPlayerIndex(data.id, room.players);
+	let player = room.players[i];
 
-	for (var row = 0; row < stats.length; row++) {
-		var tr = table.insertRow();
-		tr.classList.add("border-bottom");
-		tr.style.borderBottomColor = stats[row][4];
-		var td = tr.insertCell();
-		td.textContent = row + 1;
-
-		for (var col = 0; col < 4; col++) {
-			var td = tr.insertCell();
-			if (col === 0) td.style.color = stats[row][4];
-			td.textContent = stats[row][col];
-		}
-	}
+	room.players.splice(i, 1); // remove from room players list
+	player.moveCursor(-1); // hide cursor
+	document.getElementById(playerId).remove(); // Remove from lobby list
 }

@@ -1,7 +1,16 @@
-var util = {
+/* General utility functions. */
+
+let util = {
+	RGB2hex: function (c) {
+		c = c.substring(c.indexOf('(') + 1, c.indexOf(')')).split(',');
+		let r = parseInt(c[0]).toString(16);
+		let g = parseInt(c[1]).toString(16);
+		let b = parseInt(c[2]).toString(16);
+		return `#${r}${g}${b}`;
+	},
+
 	hide: function (id) {
-		document
-		.getElementById(id).style.display = "none";
+		document.getElementById(id).style.display = "none";
 	},
 
 	show: function (id) {
@@ -9,7 +18,7 @@ var util = {
 	},
 
 	transition: function (fromId, toId) {
-		var fromScreen = document.getElementById(fromId),
+		let fromScreen = document.getElementById(fromId),
 			toScreen   = document.getElementById(toId);
 
 		document.body.style.overflow = "hidden";
@@ -27,37 +36,28 @@ var util = {
 		}, 500);
 	},
 
+	clear: function (element) {
+		element.innerHTML = '';
+	},
+
 	findPlayer: function (id, players) {
-		for (var i = 0; i < players.length; i++)
+		for (let i = 0; i < players.length; i++)
 			if (players[i].id == id)
 				return players[i];
 	},
+
 	findPlayerIndex: function (id, players) {
-		for (var i = 0; i < players.length; i++)
+		for (let i = 0; i < players.length; i++)
 			if (players[i].id == id)
 				return i;
 		return -1;
 	},
 
-	getCookie: function (key) {
-		var name = key + "=";
-		var ca = document.cookie.split(';');
-		for (var i = 0; i < ca.length; i++) {
-			var c = ca[i];
-			while (c.charAt(0)==' ') {
-				c = c.substring(1);
-			}
-			if (c.indexOf(name) == 0) {
-				return c.substring(name.length,c.length);
-			}
-		}
-		return "";
+	setTextOpacity: function (opacity) {
+		document.getElementById("text").style.opacity = opacity.toString();
 	},
-	setCookie: function (key, value) {
-		var d = new Date();
-		var exdays = 2; // number of days until cookie expires
-		d.setTime(d.getTime() + (exdays*24*60*60*1000));
-		var expires = "expires=" + d.toUTCString();
-		document.cookie = key + "=" + value + "; " + expires;
-	},
+
+	showRoomStatus: function (status) {
+		document.getElementById("status").textContent = status;
+	}
 };

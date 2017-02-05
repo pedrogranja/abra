@@ -1,31 +1,4 @@
-const COOKIE_USER_COLOR= "userColor";
-const COLOR_PALETTE_LENGTH = 21;
-
-let colorBox = document.getElementById("color-box");
-recallPreviousColor(colorBox);
-
-let startButton = document.getElementById("start-button");
-startButton.addEventListener("click", initPlayer);
-
-// Focus the name input field
-let getname = document.getElementById("getname");
-getname.focus();
-
-// Bind Enter to START button
-getname.addEventListener("keyup", function (e) {
-	if (e.key == "Enter") {
-		startButton.click();
-	}
-});
-
-// Color selection handler.
-function selectColor() {
-	let prevColor = document.querySelector("#color-box > .selected-color");
-	prevColor.classList.remove("selected-color");
-
-	this.classList.add("selected-color");
-	util.setCookie(COOKIE_USER_COLOR, this.value);
-}
+/* "intro" screen (main screen). */
 
 // Remember the user's last color.
 function recallPreviousColor(colorBox) {
@@ -36,9 +9,39 @@ function recallPreviousColor(colorBox) {
 		box.value = i;
 	}
 
-	let cachedColor = util.getCookie(COOKIE_USER_COLOR);
+	let cachedColor = window.localStorage.getItem(STORE_USER_COLOR);
 	if (!cachedColor) {
 		cachedColor = Math.floor(Math.random() * COLOR_PALETTE_LENGTH);
 	}
 	colorBox.children[cachedColor].classList.add("selected-color");
+}
+
+// Color selection handler.
+function selectColor() {
+	let prevColor = document.querySelector("#color-box > .selected-color");
+	prevColor.classList.remove("selected-color");
+
+	this.classList.add("selected-color");
+	window.localStorage.setItem(STORE_USER_COLOR, this.value);
+}
+
+function initPlayer() {
+	let selectedColor = document.querySelector("#color-box > .selected-color");
+	let color = util.RGB2hex(window.getComputedStyle(selectedColor)
+				.getPropertyValue('background-color'));
+
+	let user = new Player(
+		document.querySelector("#getname").value,
+		color,
+		USER_ID
+	);
+
+	let againButton = document.getElementById("again-button");
+	againButton.addEventListener("click", () => {
+		playAgain(user); // Capture the user player object.
+	});
+
+	util.transition("intro", "game");
+	showGame(user);
+	connect(user);
 }

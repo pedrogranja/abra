@@ -11,66 +11,74 @@ let WSSOptions = {
 	nativeHttp: true
 };
 
-if (process.argv[2] !== 'deploy') {
-	// Run the testing HTTP server.
-	const server = require('./http_server.js');
-	server.listen(PORT);
-	console.log(`HTTP server listening on http://127.0.0.1:${PORT}`);
+function manageServerEvents(wss) {
+	// Server 'error' event listener.
+	wss.on('error', console.log);
 
-	WSSOptions.server = server;
-} else {
-	// Run only the WebSocket Server.
-	WSSOptions.port = PORT;
-}
+	// Server 'connection' event listener.
+	wss.on('connection', (ws) => {
+		// Client 'error' event listener.
+		ws.on('error', console.log);
 
-const wss = new WebSocketServer(WSSOptions);
-console.log(`WebSocket server listening on ws://127.0.0.1:${PORT}${WS_PATH}`);
+		// Client 'close' event listener.
+		ws.on('close', wsClose);
 
-// Server 'error' event listener.
-wss.on('error', console.log);
+		// Client 'message' event listener.
+		ws.on('message', wsMessage);
+	});
 
-// Server 'connection' event listener.
-wss.on('connection', (ws) => {
-	// Client 'error' event listener.
-	ws.on('error', console.log);
-
-	// Client 'close' event listener.
-	ws.on('close', wsClose);
-
-	// Client 'message' event listener.
-	ws.on('message', wsMessage);
-});
-
-// In these ws event listeners, 'this' is the websocket itself.
-function wsClose(code, reason) {
-	abra.playerDisconnected(this);
-}
-
-function wsMessage(data) {
-	try {
-		data = JSON.parse(data);
-	}
-	catch (e) {
-		// Ignore badly formatted data.
-		return;
+	// In these ws event listeners, 'this' is the websocket itself.
+	function wsClose(code, reason) {
+		abra.playerDisconnected(this);
 	}
 
-	switch (data.event) {
-		case 'newPlayer':
-			abra.newPlayer(this, data);
-			break;
-
-		case 'playerTyped':
-			abra.playerTyped(this, data);
-			break;
-
-		case 'playerDone':
-			abra.playerDone(this, data);
-			break;
-
-		default:
-			// Ignore unknown event.
+	function wsMessage(data) {
+		try {
+			data = JSON.parse(data);
+		}
+		catch (e) {
+			// Ignore badly formatted data.
 			return;
-			break;
+		}
+
+		switch (data.event) {
+			case 'newPlayer':
+				abra.newPlayer(this, data);
+				break;
+
+			case 'playerTyped':
+				abra.playerTyped(this, data);
+				break;
+
+			case 'playerDone':
+				abra.playerDone(this, data);
+				break;
+
+			default:
+				// Ignore unknown event.
+				return;
+				break;
+		}
 	}
 }
+
+function main() {
+	if (process.argv[2] !== 'deploy') {
+		// Run the testing HTTP server.
+		const server = require('./http_server.js');
+		server.listen(PORT);
+		console.log(`HTTP server listening on http://127.0.0.1:${PORT}`);
+
+		WSSOptions.server = server;
+	} else {
+		// Run only the WebSocket Server.
+		WSSOptions.port = PORT;
+	}
+
+	// Start the WebSocket server.
+	const wss = new WebSocketServer(WSSOptions);
+	console.log(`WebSocket server listening on ws://127.0.0.1:${PORT}${WS_PATH}`);
+
+	manageServerEvents(wss);
+}
+main();
