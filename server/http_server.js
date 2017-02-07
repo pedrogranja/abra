@@ -20,7 +20,7 @@ function handler(req, res) {
 function getFileName(url) {
 	let filename = (url === '/') ? 'index.html' : url;
 
-	return path.join(__dirname, '..', 'client', filename);
+	return path.join(__dirname, '..', 'client/dist', filename);
 }
 
 module.exports = server;

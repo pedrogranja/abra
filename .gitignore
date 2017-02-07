@@ -1,5 +1,5 @@
 node_modules
 *.log
-client/dist/*.js*
-client/dist/*.css*
-client/dist/*.html*
+client/dist/abra.min.js*
+client/dist/style.min.css*
+client/dist/index.html*
