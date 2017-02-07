@@ -1,6 +1,8 @@
 /* General utility functions. */
 
-let util = {
+'use strict';
+
+module.exports = {
 	RGB2hex: function (c) {
 		c = c.substring(c.indexOf('(') + 1, c.indexOf(')')).split(',');
 		let r = parseInt(c[0]).toString(16);
@@ -9,31 +11,21 @@ let util = {
 		return `#${r}${g}${b}`;
 	},
 
-	hide: function (id) {
-		document.getElementById(id).style.display = "none";
-	},
-
-	show: function (id) {
-		document.getElementById(id).style.display = "block";
-	},
-
 	transition: function (fromId, toId) {
+		// TODO: pineman no understand :'(
 		let fromScreen = document.getElementById(fromId),
 			toScreen   = document.getElementById(toId);
 
 		document.body.style.overflow = "hidden";
 		fromScreen.classList.add("transition-out");
 		toScreen.classList.add("transition-out");
-		util.show(toId);
+		document.getElementById(toId).style.display = "block";
 
 		setTimeout(function () {
-			util.hide(fromId);
+			document.getElementById(fromId).style.display = "none";
 			toScreen.classList.remove("transition-out");
+			fromScreen.classList.remove("transition-out");
 		}, 250);
-
-		setTimeout(function () {
-			document.body.style.overflow = "";
-		}, 500);
 	},
 
 	clear: function (element) {
@@ -60,4 +52,4 @@ let util = {
 	showRoomStatus: function (status) {
 		document.getElementById("status").textContent = status;
 	}
-};
+}

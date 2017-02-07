@@ -1,8 +1,15 @@
-/* Main objects */
+/* Main game objects. */
+
+'use strict';
+
+const util = require('./util.js');
 
 const ROOM_READY_TIME = 5;
-const USER_ID = "MYSELF";
+const USER_ID = 'LOCAL';
 
+// TODO: Convert to ES6 class syntax?
+
+// Player object (local user as well as remote players);
 let Player = function (name, color, id) {
 	this.name = name;
 	this.color = color;
@@ -11,6 +18,15 @@ let Player = function (name, color, id) {
 	this.isUser = (id === USER_ID);
 	this.pos = this.isUser ? 0 : -1; // Local user starts at 0!
 	this.errors = 0;
+}
+
+Player.USER_ID = USER_ID;
+
+// Convert an object with name, color and id attributes
+// to our local Player object (prototype)
+// (could use Object.setPrototypeOf, but that has some performance implications)
+Player.from = function (player) {
+	return new Player(player.name, player.color, player.id);
 }
 
 Player.prototype.moveCursor = function (newPos) {
@@ -46,13 +62,7 @@ Player.prototype.reset = function () {
 	this.errors = 0;
 }
 
-// Convert an object with name, color and id attributes
-// to our local Player object (prototype)
-// (could use Object.setPrototypeOf, but that has some performance implications)
-Player.from = function(player) {
-	return new Player(player.name, player.color, player.id);
-}
-
+// Room object.
 let Room = function (name, players, timeLeft) {
 	this.name = name;
 	this.players = players;
@@ -62,6 +72,8 @@ let Room = function (name, players, timeLeft) {
 	this.startTime = 0;
 }
 
-Room.from = function(room) {
+Room.from = function (room) {
 	return new Room(room.name, room.players, room.timeLeft);
 }
+
+module.exports = {Player, Room};

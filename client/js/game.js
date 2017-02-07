@@ -1,22 +1,76 @@
-/* "game" screen */
+/* Main game functions. */
 
-function playAgain(user) {
-	util.clear(document.getElementById("text"));
-	util.clear(document.getElementById("room-name"));
-	util.clear(document.getElementById("status"));
-	util.clear(document.getElementById("players"));
-	util.clear(document.querySelector("#stats-table tbody"));
-	user.reset();
+'use strict';
 
-	util.transition("stats", "game");
-	showGame(user);
-	connect(user);
-}
+const util = require('./util.js');
+const Player = require('./Prototype.js').Player;
+const Room = require('./Prototype.js').Room;
 
-function showGame(user) {
+const PROTOCOL = (window.location.protocol === 'https:') ? 'wss://' : 'ws://';
+const PORT = window.location.port ? ':' + window.location.port : '';
+const WS_SERVER = PROTOCOL + window.location.hostname + PORT + '/abra';
+
+// From the "game" screen onwards.
+function gameLoop(user) {
 	showNewPlayer(user);
 	util.setTextOpacity(0.5);
 	util.showRoomStatus("Connecting to server...");
+
+	let socket = new WebSocket(WS_SERVER);
+
+	// This is the 'loop' essentially.
+	manageSocketEvents(socket, user);
+
+	socket.addEventListener('open', function () {
+		socket.send(JSON.stringify({
+			event: 'newPlayer',
+			name: user.name,
+			color: user.color
+		}));
+	});
+}
+
+function manageSocketEvents(socket, user) {
+	// Various events need the room.
+	let room;
+
+	let data;
+	socket.addEventListener('message', function(message) {
+		data = JSON.parse(message.data);
+
+		switch (data.event) {
+			case 'foundRoom':
+				room = Room.from(data);
+				foundRoom(room, user);
+				break;
+
+			case 'playerEnteredRoom':
+				playerEnteredRoom(room, Player.from(data));
+				break;
+
+			case 'startGame':
+				showPreGame(room, socket, data.text, user);
+				break;
+
+			case 'playerTyped':
+				playerTyped(room, data.id, data.pos);
+				break;
+
+			case 'endGame':
+				showStats(data.stats, user);
+				socket.close();
+				break;
+
+			case 'playerDisconnected':
+				playerDisconnected(room, data.id);
+				break;
+
+			default:
+				break;
+		}
+	});
+
+	socket.addEventListener('error', console.log);
 }
 
 function showNewPlayer(player) {
@@ -47,7 +101,7 @@ function foundRoom(room, user) {
 	}
 
 	util.showRoomStatus("Finding players... " + room.timeLeft);
-	room.timer = setInterval(() => {
+	room.timer = setInterval(function () {
 		room.timeLeft--;
 		if (room.timeLeft) {
 			util.showRoomStatus("Finding players... " + room.timeLeft);
@@ -65,7 +119,7 @@ function playerEnteredRoom(room, player) {
 }
 
 function showPreGame(room, socket, text, user) {
-	setTimeout(startGame, room.readyTime*1000, room, socket, data.text, user);
+	setTimeout(startGame, room.readyTime*1000, room, socket, text, user);
 
 	// Show text (a <span> for each letter)
 	// TODO: DocumentFragment?
@@ -83,7 +137,7 @@ function showPreGame(room, socket, text, user) {
 	}
 
 	util.showRoomStatus("Start in " + room.readyTime + "...");
-	room.timer = setInterval(() => {
+	room.timer = setInterval(function () {
 		room.readyTime--;
 		if (room.readyTime) {
 			util.showRoomStatus("Start in " + room.readyTime + "...");
@@ -102,9 +156,9 @@ function startGame(room, socket, text, user) {
 	room.startTime = new Date();
 }
 
-let blurListener;
-let clickListener;
-let inputListener;
+let inputBlurListener;
+let windowClickListener;
+let inputInputListener;
 function prepareInput(room, socket, text, user) {
 	let input = document.getElementById("hidden-input");
 
@@ -113,16 +167,16 @@ function prepareInput(room, socket, text, user) {
 	input.value = "";
 
 	// Always focus input box
-	input.addEventListener("blur", blurListener = function (e) {
+	input.addEventListener("blur", inputBlurListener = function (e) {
 		input.focus();
 	});
-	window.addEventListener("click", clickListener = function (e) {
+	window.addEventListener("click", windowClickListener = function (e) {
 		input.focus();
 	});
 	input.focus();
 
 	// Catch keypresses inside input box
-	input.addEventListener("input", inputListener = function (e) {
+	input.addEventListener("input", inputInputListener = function (e) {
 		userKeyPress(this.value, room, socket, text, user);
 		this.value = "";
 	});
@@ -168,9 +222,9 @@ function finishGame(room, user, socket) {
 
 	// Clear event listeners related to the <input>
 	let input = document.getElementById("hidden-input");
-	input.removeEventListener("blur", blurListener);
-	window.removeEventListener("click", clickListener);
-	input.removeEventListener("input", inputListener);
+	input.removeEventListener("blur", inputBlurListener);
+	window.removeEventListener("click", windowClickListener);
+	input.removeEventListener("input", inputInputListener);
 }
 
 function playerTyped(room, playerId, pos) {
@@ -179,11 +233,57 @@ function playerTyped(room, playerId, pos) {
 	player.pos = pos;
 }
 
+let againButtonClickListener;
+function showStats(stats, user) {
+	let table = document.getElementById("stats-table").tBodies[0];
+
+	for (let row = 0; row < stats.length; row++) {
+		let tr = table.insertRow();
+		tr.classList.add("border-bottom");
+		tr.style.borderBottomColor = stats[row][4];
+		let td = tr.insertCell();
+		td.textContent = row + 1;
+
+		for (let col = 0; col < 4; col++) {
+			td = tr.insertCell();
+			if (col === 0) td.style.color = stats[row][4];
+			td.textContent = stats[row][col];
+		}
+	}
+
+	util.transition("game", "stats");
+
+	let againButton = document.getElementById("again-button");
+	againButton.addEventListener("click", againButtonClickListener = function () {
+		resetGame(user);
+	});
+
+	document.getElementById("again-button").focus();
+}
+
+// Reset the game and start it again.
+function resetGame(user) {
+	let againButton = document.getElementById("again-button");
+	againButton.removeEventListener("click", againButtonClickListener);
+
+	util.clear(document.getElementById("text"));
+	util.clear(document.getElementById("room-name"));
+	util.clear(document.getElementById("status"));
+	util.clear(document.getElementById("players"));
+	util.clear(document.querySelector("#stats-table tbody"));
+	user.reset();
+
+	util.transition("stats", "game");
+	gameLoop(user);
+}
+
 function playerDisconnected(room, playerId) {
-	let i = util.findPlayerIndex(data.id, room.players);
+	let i = util.findPlayerIndex(playerId, room.players);
 	let player = room.players[i];
 
 	room.players.splice(i, 1); // remove from room players list
 	player.moveCursor(-1); // hide cursor
 	document.getElementById(playerId).remove(); // Remove from lobby list
 }
+
+module.exports = {gameLoop, resetGame};
