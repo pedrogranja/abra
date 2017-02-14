@@ -1,8 +1,23 @@
 'use strict';
 
 const gulp = require('gulp');
-
 const spawn = require('child_process').spawn;
+const rm = require('rimraf').sync;
+
+const OUT_DIR = 'serve';
+
+const LESS_IN = 'less/main.less';
+const LESS_WATCH = 'less/**/*.less';
+const LESS_OUT = `${OUT_DIR}/style.min.css`;
+
+const HTML_IN = 'html/index.html';
+const HTML_WATCH = 'hmtl/**/*.html';
+const HTML_OUT = `${OUT_DIR}/index.html`;
+
+const JS_IN = 'js/main.js';
+const JS_WATCH = 'js/**/*.js';
+const JS_OUT = `${OUT_DIR}/abra.min.js`;
+
 function run(command) {
 	command = command.split(' ');
 	const proc = spawn(command[0], command.slice(1), {
@@ -14,9 +29,23 @@ function run(command) {
 	});
 }
 
+gulp.task('default', ['less', 'html', 'js']);
+
+gulp.task('clean', () => {
+	rm(LESS_OUT);
+	rm(LESS_OUT + '.map');
+	rm(JS_OUT);
+	rm(JS_OUT + '.map');
+	rm(HTML_OUT);
+});
+
+gulp.task('watch', () => {
+	gulp.watch(LESS_WATCH, ['less']);
+	gulp.watch(HTML_WATCH, ['html']);
+	gulp.watch(JS_WATCH, ['js']);
+});
+
 gulp.task('less', function (done) {
-	const input = 'less/main.less';
-	const output = 'dist/style.min.css';
 	const opt = [
 		'--source-map',
 		'--source-map-less-inline',
@@ -24,13 +53,11 @@ gulp.task('less', function (done) {
 		'--autoprefix="last 2 versions"'
 	].join(' ');
 
-	run(`lessc ${opt} ${input} ${output}`);
+	run(`lessc ${opt} ${LESS_IN} ${LESS_OUT}`);
 	done();
 });
 
 gulp.task('html', function (done) {
-	const input_dir = 'html';
-	const output_dir = 'dist';
 	const opt = [
 		'--remove-comments',
 		'--sort-attributes',
@@ -40,65 +67,17 @@ gulp.task('html', function (done) {
 		'--conservative-collapse'
 	].join(' ');
 
-	run(`html-minifier ${opt} --input-dir=${input_dir} --output-dir=${output_dir}`);
+	run(`html-minifier ${opt} ${HTML_IN} -o ${HTML_OUT}`);
 	done();
 });
 
-// TODO: stupid browserify can't write sourcemaps to files and
-// uglify can't read inline input sourcemaps...
-// so for the time being this task will use the traditional stream approach.
-const sourcemaps = require('gulp-sourcemaps');
-const source = require('vinyl-source-stream');
-const buffer = require('vinyl-buffer');
-
-const browserify = require('browserify');
-const uglify = require('gulp-uglify');
-const pump = require('pump');
-
 gulp.task('js', function (done) {
-	const input = 'js/main.js';
-	const output = 'abra.min.js';
-	const opt = {
-		debug: true,
-		detectGlobals: false
-	};
-
-	pump([
-		browserify(opt).add(input).bundle(),
-		source(output),
-		buffer(),
-		sourcemaps.init({loadMaps: true}),
-		uglify(),
-		sourcemaps.write(''),
-		gulp.dest('dist')
-	], done);
-
-	/*
-	const input = 'js/main.js';
-	const output = 'dist/abra.js';
 	const opt = [
-		'--debug'
-	].join(' ');
-
-	run(`browserify ${opt} --entry ${input} --outfile ${output}`);
-
-	const u_input = b_output;
-	const u_output = 'dist/abra.min.js';
-	const u_opt = [
-		`--in-source-map ${b_output}.map`,
-		`--source-map ${u_output}.map`,
+		`--in-source-map ${JS_OUT}.map`,
+		`--source-map ${JS_OUT}.map`,
 		'-m -r "require,exports"',
 		'-c'
 	].join(' ');
 
-	run(`uglifyjs ${u_opt} --output ${u_output} ${u_input}`);
-	*/
+	run(`browserify --debug --entry ${JS_IN} | exorcist ${JS_OUT}.map > ${JS_OUT} && uglifyjs ${opt} --output ${JS_OUT} ${JS_OUT}`);
 });
-
-gulp.task('watch', () => {
-	gulp.watch('less/*.less', ['less']);
-	gulp.watch('html/*.html', ['html']);
-	gulp.watch('js/*.js', ['js']);
-});
-
-gulp.task('default', ['less', 'html', 'js']);

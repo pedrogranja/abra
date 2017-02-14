@@ -4,6 +4,8 @@
 const path = require('path');
 const fs = require('fs');
 
+const SERVE_PATH = 'client/serve';
+
 let server = require('http').createServer(handler);
 
 function handler(req, res) {
@@ -20,7 +22,7 @@ function handler(req, res) {
 function getFileName(url) {
 	let filename = (url === '/') ? 'index.html' : url;
 
-	return path.join(__dirname, '..', 'client/dist', filename);
+	return path.join(__dirname, '..', SERVE_PATH, filename);
 }
 
 module.exports = server;

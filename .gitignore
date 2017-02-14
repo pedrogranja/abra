@@ -1,5 +1,8 @@
 node_modules
 *.log
-client/dist/abra.min.js*
-client/dist/style.min.css*
-client/dist/index.html*
+
+client/serve/*.map
+client/serve/abra.min.js
+client/serve/style.min.css
+client/serve/index.html
+!client/serve/*/
